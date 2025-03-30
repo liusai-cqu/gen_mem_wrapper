@@ -86,158 +86,158 @@ cutwrap (
         self.RTL = self.RTL.replace("$PHY_DB_INST$", "{:s}".format(PHY_DB_INST))
         return self.RTL
 
-    def Rep_BACKDOOR(self):
-        READ_DEF = ""
-        WRITE_DEF = ""
-        READ_WORD = ""
-        WRITE_WORD = ""
-        ECC_CHECK = ""
-        ECC_PACKET = ""
-        DATATMPLIST = list()
-        ECCGRP_DATALIST = list()
-        READ_DATAXLIST = list()
-        READ_DATATMPLIST = list()
-        WC_DATALIST = list()
-        ECC_RDATALIST = list()
-        # READ_DEF
-        for i in range(self.db.dp.x):
-            READ_DATAXLIST.append("".join(["datax{:d}".format(i)]))
-        READ_DEF += "    *0+logic [{}:0]".format(self.db.width - 1,)+",".join(READ_DATAXLIST)+";\n"
-        for i in range(self.ECC_Grp):
-            READ_DATATMPLIST.append("".join(["datatmp{:d}".format(i)]))
-        READ_DEF += "    *0+logic [{}:0]".format(ECCGRP_WIDTH - 1,)+",".join(ECCGRP_DATALIST)+";\n"
-        READ_DEF += "    *4+logic [{}:0]".format(ECCGRP_WIDTH * 2 - 1,)+",".join(READ_DATATMPLIST)+";\n"
-        if ((self.selbits_h == -1) and (self.selbits_l == -1)) or (self.selbits_h == self.phyaddr_h):
-            READ_DEF += "    *0+logic sel;\n"
-            WRITE_DEF += "    *4+logic sel;\n"
-            WRITE_WORD += "    *4+sel = 1'b0;\n"
-        elif (self.selbits_h != -1) and (self.selbits_l != -1):
-            READ_DEF += "    *0+logic sel;\n"
-            READ_WORD += "    *4+sel = address_r[{}:{}];\n".format(self.selbits_h, self.selbits_l)
-            WRITE_WORD += "    *4+sel = address_w[{}:{}];\n".format(self.selbits_h, self.selbits_l)
-        else:
-            READ_DEF += "    *0+logic [{}:{}] sel;\n".format(self.selbits_h - self.selbits_l, 0)
-            WRITE_DEF += "    *4+logic [{}:{}] sel;\n".format(self.selbits_h - self.selbits_l, 0)
-            READ_WORD += "    *4+sel = address_r[{}:{}];\n".format(self.selbits_h, self.selbits_l)
-            WRITE_WORD += "    *4+sel = address_w[{}:{}];\n".format(self.selbits_h, self.selbits_l)
-            READ_WORD += "    *4+logic [{}:{}] addr;\n".format(self.phyaddr_h - self.phyaddr_l, 0)
-            WRITE_WORD += "    *4+logic [{}:{}] addr;\n".format(self.phyaddr_h - self.phyaddr_l, 0)
-        # READ_WORD += "    *0+ifdef FAKE_PHY_MEM\n"
-        # READ_WORD += "    *0+else\n"
-        READ_WORD += "    *4+case(sel)\n"
-        WRITE_WORD += "    *4+addr = address_w[{}:{}];\n".format(self.phyaddr_h, self.phyaddr_l)
-        WRITE_WORD += "    *4+case(sel)\n"
-        for i in range(self.ECC_Grp):
-            tmp_high = (i + 1) * self.ECCGRP_Dwidth - 1
-            tmp_low = i * self.ECCGRP_Dwidth
-            if tmp_high < self.Width:
-                ECC_WDATALIST.append("".join(["ecc_func_get_rtl_ecc(data_in[{}:{}])".format(tmp_high, tmp_low)]))
-            else:
-                ECC_WDATALIST.append("".join(["ecc_func_get_rtl_ecc({}d{}ho,data_in[{}:{}d{}])".format(tmp_high - self.Width + 1, self.Width - 1, tmp_high, tmp_low)]))
-        ECC_PACKET = "    *4+ecc_data = {{"+",".join(ECC_WDATALIST[:-1])+"}};\n"
+    # def Rep_BACKDOOR(self):
+    #     READ_DEF = ""
+    #     WRITE_DEF = ""
+    #     READ_WORD = ""
+    #     WRITE_WORD = ""
+    #     ECC_CHECK = ""
+    #     ECC_PACKET = ""
+    #     DATATMPLIST = list()
+    #     ECCGRP_DATALIST = list()
+    #     READ_DATAXLIST = list()
+    #     READ_DATATMPLIST = list()
+    #     WC_DATALIST = list()
+    #     ECC_RDATALIST = list()
+    #     # READ_DEF
+    #     for i in range(self.db.dp.x):
+    #         READ_DATAXLIST.append("".join(["datax{:d}".format(i)]))
+    #     READ_DEF += "    *0+logic [{}:0]".format(self.db.width - 1,)+",".join(READ_DATAXLIST)+";\n"
+    #     for i in range(self.ECC_Grp):
+    #         READ_DATATMPLIST.append("".join(["datatmp{:d}".format(i)]))
+    #     READ_DEF += "    *0+logic [{}:0]".format(ECCGRP_WIDTH - 1,)+",".join(ECCGRP_DATALIST)+";\n"
+    #     READ_DEF += "    *4+logic [{}:0]".format(ECCGRP_WIDTH * 2 - 1,)+",".join(READ_DATATMPLIST)+";\n"
+    #     if ((self.selbits_h == -1) and (self.selbits_l == -1)) or (self.selbits_h == self.phyaddr_h):
+    #         READ_DEF += "    *0+logic sel;\n"
+    #         WRITE_DEF += "    *4+logic sel;\n"
+    #         WRITE_WORD += "    *4+sel = 1'b0;\n"
+    #     elif (self.selbits_h != -1) and (self.selbits_l != -1):
+    #         READ_DEF += "    *0+logic sel;\n"
+    #         READ_WORD += "    *4+sel = address_r[{}:{}];\n".format(self.selbits_h, self.selbits_l)
+    #         WRITE_WORD += "    *4+sel = address_w[{}:{}];\n".format(self.selbits_h, self.selbits_l)
+    #     else:
+    #         READ_DEF += "    *0+logic [{}:{}] sel;\n".format(self.selbits_h - self.selbits_l, 0)
+    #         WRITE_DEF += "    *4+logic [{}:{}] sel;\n".format(self.selbits_h - self.selbits_l, 0)
+    #         READ_WORD += "    *4+sel = address_r[{}:{}];\n".format(self.selbits_h, self.selbits_l)
+    #         WRITE_WORD += "    *4+sel = address_w[{}:{}];\n".format(self.selbits_h, self.selbits_l)
+    #         READ_WORD += "    *4+logic [{}:{}] addr;\n".format(self.phyaddr_h - self.phyaddr_l, 0)
+    #         WRITE_WORD += "    *4+logic [{}:{}] addr;\n".format(self.phyaddr_h - self.phyaddr_l, 0)
+    #     # READ_WORD += "    *0+ifdef FAKE_PHY_MEM\n"
+    #     # READ_WORD += "    *0+else\n"
+    #     READ_WORD += "    *4+case(sel)\n"
+    #     WRITE_WORD += "    *4+addr = address_w[{}:{}];\n".format(self.phyaddr_h, self.phyaddr_l)
+    #     WRITE_WORD += "    *4+case(sel)\n"
+    #     for i in range(self.ECC_Grp):
+    #         tmp_high = (i + 1) * self.ECCGRP_Dwidth - 1
+    #         tmp_low = i * self.ECCGRP_Dwidth
+    #         if tmp_high < self.Width:
+    #             ECC_WDATALIST.append("".join(["ecc_func_get_rtl_ecc(data_in[{}:{}])".format(tmp_high, tmp_low)]))
+    #         else:
+    #             ECC_WDATALIST.append("".join(["ecc_func_get_rtl_ecc({}d{}ho,data_in[{}:{}d{}])".format(tmp_high - self.Width + 1, self.Width - 1, tmp_high, tmp_low)]))
+    #     ECC_PACKET = "    *4+ecc_data = {{"+",".join(ECC_WDATALIST[:-1])+"}};\n"
 
-        if self.db.x == 1:
-            tmp_width = self.db.Width
-        else:
-            tmp_width = self.db.Width
-        # for i in range(self.db.y):
-        #     counter=0
-        #     READ_WORD += "    *8+str({})+":+"begin"+"\n"
-        #     WRITE_WORD += "    *8+str({})+":+"begin"+"\n"
-        #     for j in range(self.db.x):
-        #         tmp_high = min((counter + 1) * tmp_width - 1, self.Width - 1 + (self.ECC_bits))
-        #         tmp_low = counter * tmp_width
-        #         counter = counter + 1
-        #         WRITE_WORD += "    *12+cutwrap.phywrapx{{:d}y{:d}}.memCell.uut.mem_core_array[addr] = task_din[{}:{}];\n".format(j, i, tmp_high, tmp_low)
-        #         READ_WORD += "    *12+datax{{:d}}=cutwrap.phywrapx{{:d}y{:d}}.memCell.uut.mem_core_array[addr];\n".format(j, j, i)
-        #         READ_WORD += "    *12+cutwrap.phywrapx{{:d}y{:d}}.memCell.uut.write_mem_red(addr, task_din[{}:{}]);\n".format(j, i, tmp_high, tmp_low)
-        #     # SYNOPSYS model
-        #     READ_WORD += "    *8+end"+"\n"
-        #     WRITE_WORD += "    *8+end"+"\n"
-        # #READ_WORD += "    *4+endcase"+"\n"
-        # #WRITE_WORD += "    *4+endcase"+"\n"
-        for i in range(self.db.y):
-            counter = 0
-            READ_WORD += "    "*8+str(i)+":"+"begin"+"\n"
-            WRITE_WORD += "   "*8+str(i)+":"+"begin"+"\n"
-            READ_WORD += "    "*12+"`ifdef FAST_PHY_MODEL\n"
-            WRITE_WORD += "    "*12+"`ifdef FAST_PHY_MODEL\n"
-            for j in range(self.db.x):
-                tmp_high = min((counter + 1) * tmp_width - 1, self.Width - 1 + (self.ECC_bits))
-                tmp_low = counter * tmp_width
-                counter = counter + 1
-                WRITE_WORD += "    *12+cutwrap.phywrapx{{:d}y{:d}}.memCell.uut.mem_core_array[addr] = task_din[{}:{}];\n".format(j, i, tmp_high, tmp_low)
-                # SYNOPSYS no - fast model
-                READ_WORD += "    *12+datax{{:d}}=cutwrap.phywrapx{{:d}y{:d}}.memCell.uut.mem_core_array[addr];\n".format(j, j, i)
-                READ_WORD += "    *12+cutwrap.phywrapx{{:d}y{:d}}.memCell.uut.write_mem_red(addr, task_din[{}:{}]);\n".format(j, i, tmp_high, tmp_low)
-            READ_WORD += "    *12+else\n"
-            WRITE_WORD += "    *12+else\n"
-            for j in range(self.db.x):
-                tmp_high = min((counter + 1) * tmp_width - 1, self.Width - 1 + (self.ECC_bits))
-                tmp_low = counter * tmp_width
-                counter = counter + 1
-                WRITE_WORD += "    *12+cutwrap.phywrapx{{:d}y{:d}}.memCell.uut.write_mem_red(addr, task_din[{}:{}]);\n".format(j, i, tmp_high, tmp_low)
-                # SYNOPSYS no - fast model
-                READ_WORD += "    *12+cutwrap.phywrapx{{:d}y{:d}}.memCell.uut.read_mem_red(datax{{:d}}, addr);\n".format(j, i, j)
-            READ_WORD += "    *12+endif\n"
-            WRITE_WORD += "    *12+endif\n"
-            READ_WORD += "    *8+end"+"\n"
-            WRITE_WORD += "    *8+end"+"\n"
-        # READ_WORD += "    *4+endcase"+"\n"
-        # WRITE_WORD += "    *4+endcase"+"\n"
+    #     if self.db.x == 1:
+    #         tmp_width = self.db.Width
+    #     else:
+    #         tmp_width = self.db.Width
+    #     # for i in range(self.db.y):
+    #     #     counter=0
+    #     #     READ_WORD += "    *8+str({})+":+"begin"+"\n"
+    #     #     WRITE_WORD += "    *8+str({})+":+"begin"+"\n"
+    #     #     for j in range(self.db.x):
+    #     #         tmp_high = min((counter + 1) * tmp_width - 1, self.Width - 1 + (self.ECC_bits))
+    #     #         tmp_low = counter * tmp_width
+    #     #         counter = counter + 1
+    #     #         WRITE_WORD += "    *12+cutwrap.phywrapx{{:d}y{:d}}.memCell.uut.mem_core_array[addr] = task_din[{}:{}];\n".format(j, i, tmp_high, tmp_low)
+    #     #         READ_WORD += "    *12+datax{{:d}}=cutwrap.phywrapx{{:d}y{:d}}.memCell.uut.mem_core_array[addr];\n".format(j, j, i)
+    #     #         READ_WORD += "    *12+cutwrap.phywrapx{{:d}y{:d}}.memCell.uut.write_mem_red(addr, task_din[{}:{}]);\n".format(j, i, tmp_high, tmp_low)
+    #     #     # SYNOPSYS model
+    #     #     READ_WORD += "    *8+end"+"\n"
+    #     #     WRITE_WORD += "    *8+end"+"\n"
+    #     # #READ_WORD += "    *4+endcase"+"\n"
+    #     # #WRITE_WORD += "    *4+endcase"+"\n"
+    #     for i in range(self.db.y):
+    #         counter = 0
+    #         READ_WORD += "    "*8+str(i)+":"+"begin"+"\n"
+    #         WRITE_WORD += "   "*8+str(i)+":"+"begin"+"\n"
+    #         READ_WORD += "    "*12+"`ifdef FAST_PHY_MODEL\n"
+    #         WRITE_WORD += "    "*12+"`ifdef FAST_PHY_MODEL\n"
+    #         for j in range(self.db.x):
+    #             tmp_high = min((counter + 1) * tmp_width - 1, self.Width - 1 + (self.ECC_bits))
+    #             tmp_low = counter * tmp_width
+    #             counter = counter + 1
+    #             WRITE_WORD += "    *12+cutwrap.phywrapx{{:d}y{:d}}.memCell.uut.mem_core_array[addr] = task_din[{}:{}];\n".format(j, i, tmp_high, tmp_low)
+    #             # SYNOPSYS no - fast model
+    #             READ_WORD += "    *12+datax{{:d}}=cutwrap.phywrapx{{:d}y{:d}}.memCell.uut.mem_core_array[addr];\n".format(j, j, i)
+    #             READ_WORD += "    *12+cutwrap.phywrapx{{:d}y{:d}}.memCell.uut.write_mem_red(addr, task_din[{}:{}]);\n".format(j, i, tmp_high, tmp_low)
+    #         READ_WORD += "    *12+else\n"
+    #         WRITE_WORD += "    *12+else\n"
+    #         for j in range(self.db.x):
+    #             tmp_high = min((counter + 1) * tmp_width - 1, self.Width - 1 + (self.ECC_bits))
+    #             tmp_low = counter * tmp_width
+    #             counter = counter + 1
+    #             WRITE_WORD += "    *12+cutwrap.phywrapx{{:d}y{:d}}.memCell.uut.write_mem_red(addr, task_din[{}:{}]);\n".format(j, i, tmp_high, tmp_low)
+    #             # SYNOPSYS no - fast model
+    #             READ_WORD += "    *12+cutwrap.phywrapx{{:d}y{:d}}.memCell.uut.read_mem_red(datax{{:d}}, addr);\n".format(j, i, j)
+    #         READ_WORD += "    *12+endif\n"
+    #         WRITE_WORD += "    *12+endif\n"
+    #         READ_WORD += "    *8+end"+"\n"
+    #         WRITE_WORD += "    *8+end"+"\n"
+    #     # READ_WORD += "    *4+endcase"+"\n"
+    #     # WRITE_WORD += "    *4+endcase"+"\n"
 
-        # generate glb_write_task here
-        # for i in range(self.db.y):
-        GLB_WRITE_WORD += "    *4+for(integer k=0;k<{};k=k+1)begin\n".format(self.db.Depth)
-        counter = 0
-        for j in range(self.db.x):
-            tmp_high = min((counter + 1) * tmp_width - 1, self.Width - 1 + (self.ECC_bits))
-            tmp_low = counter * tmp_width
-            counter = counter + 1
-            GLB_WRITE_WORD += "    *8+cutwrap.phywrapx{{:d}y{:d}}.memCell.uut.mem_core_array[k]= task_din[{}:{}];\n".format(j, i, tmp_high, tmp_low)
-            GLB_WRITE_WORD += "    *8+cutwrap.phywrapx{{:d}y{:d}}.memCell.uut.write_mem_red(k, task_din[{}:{}]);\n".format(j, i, tmp_high, tmp_low)
-        GLB_WRITE_WORD += "    *4+end\n"
+    #     # generate glb_write_task here
+    #     # for i in range(self.db.y):
+    #     GLB_WRITE_WORD += "    *4+for(integer k=0;k<{};k=k+1)begin\n".format(self.db.Depth)
+    #     counter = 0
+    #     for j in range(self.db.x):
+    #         tmp_high = min((counter + 1) * tmp_width - 1, self.Width - 1 + (self.ECC_bits))
+    #         tmp_low = counter * tmp_width
+    #         counter = counter + 1
+    #         GLB_WRITE_WORD += "    *8+cutwrap.phywrapx{{:d}y{:d}}.memCell.uut.mem_core_array[k]= task_din[{}:{}];\n".format(j, i, tmp_high, tmp_low)
+    #         GLB_WRITE_WORD += "    *8+cutwrap.phywrapx{{:d}y{:d}}.memCell.uut.write_mem_red(k, task_din[{}:{}]);\n".format(j, i, tmp_high, tmp_low)
+    #     GLB_WRITE_WORD += "    *4+end\n"
 
-        for i in range(self.db.y):
-            GLB_WRITE_WORD += "    *4+for(integer k=0;k<{};k=k+1)begin\n".format(self.db.Depth)
-            counter = 0
-            GLB_WRITE_WORD += "    *8+ifdef FAST_PHY_MODEL\n"
-            for j in range(self.db.x):
-                tmp_high = min((counter + 1) * tmp_width - 1, self.Width - 1 + (self.ECC_bits))
-                tmp_low = counter * tmp_width
-                counter = counter + 1
-                GLB_WRITE_WORD += "    *8+cutwrap.phywrapx{{:d}y{:d}}.memCell.uut.mem_core_array[k]= task_din[{}:{}];\n".format(j, i, tmp_high, tmp_low)
-            GLB_WRITE_WORD += "    *8+else\n"
-            for j in range(self.db.x):
-                tmp_high = min((counter + 1) * tmp_width - 1, self.Width - 1 + (self.ECC_bits))
-                tmp_low = counter * tmp_width
-                counter = counter + 1
-                GLB_WRITE_WORD += "    *8+cutwrap.phywrapx{{:d}y{:d}}.memCell.uut.write_mem_red(k, task_din[{}:{}]);\n".format(j, i, tmp_high, tmp_low)
-            GLB_WRITE_WORD += "    *8+endif\n"
-            GLB_WRITE_WORD += "    *4+end\n"
+    #     for i in range(self.db.y):
+    #         GLB_WRITE_WORD += "    *4+for(integer k=0;k<{};k=k+1)begin\n".format(self.db.Depth)
+    #         counter = 0
+    #         GLB_WRITE_WORD += "    *8+ifdef FAST_PHY_MODEL\n"
+    #         for j in range(self.db.x):
+    #             tmp_high = min((counter + 1) * tmp_width - 1, self.Width - 1 + (self.ECC_bits))
+    #             tmp_low = counter * tmp_width
+    #             counter = counter + 1
+    #             GLB_WRITE_WORD += "    *8+cutwrap.phywrapx{{:d}y{:d}}.memCell.uut.mem_core_array[k]= task_din[{}:{}];\n".format(j, i, tmp_high, tmp_low)
+    #         GLB_WRITE_WORD += "    *8+else\n"
+    #         for j in range(self.db.x):
+    #             tmp_high = min((counter + 1) * tmp_width - 1, self.Width - 1 + (self.ECC_bits))
+    #             tmp_low = counter * tmp_width
+    #             counter = counter + 1
+    #             GLB_WRITE_WORD += "    *8+cutwrap.phywrapx{{:d}y{:d}}.memCell.uut.write_mem_red(k, task_din[{}:{}]);\n".format(j, i, tmp_high, tmp_low)
+    #         GLB_WRITE_WORD += "    *8+endif\n"
+    #         GLB_WRITE_WORD += "    *4+end\n"
 
-        # merge parsing ecc
-        for j in range(self.db.x):
-            ECC_RDATALIST.append("".join(["datax{}{}".format(j)]))
-        ECC_CHECK += "    *4+mem_dout = {{"+",".join(ECC_RDATALIST[:-1])+"}};\n"
-        for i in range(self.ECC_Grp):
-            tmp_high = (i + 1) * self.ECCGRP_Dwidth - 1
-            tmp_low = i * self.ECCGRP_Dwidth
-            tmp_ecc = self.Width * self.ECCGRP_Dwidth / self.ECC_Grp
-            DATATMPLIST.append("".join(["datatmp{{:d}}".format(i)]))
-            if (self.ECC_bits != 0):
-                if (self.ECCGRP_Dwidth * self.ECC_Grp != self.Width) and (i == self.ECC_Grp - 1):
-                    ECC_CHECK += "    *4+data_eccgrp{{:d}}.format(i)+ = {mem_dout[{}:{}],mem_dout[{}:{}]};".format(tmp_ecc_h, tmp_ecc_l, tmp_high, tmp_low)+"\n"
-                else:
-                    ECC_CHECK += "    *4+data_eccgrp{{:d}}.format(i)+ = data_eccgrp{{:d}}.format(i)+ = {mem_dout[{}:{}]};".format(tmp_high, tmp_low)+"\n"
-            else:
-                ECC_CHECK += "    *4+data_eccgrp{{:d}}.format(i)+ = data_eccgrp{{:d}}.format(i)+ = data_eccgrp{{:d}}.format(i)+;\n"
-                ECC_CHECK += "    *4+data_eccgrp{{:d}}.format(i)+ = ecc_func.con_rtl_ecc(data_eccgrp{{:d}}[ECCGRP_WIDTH - 1:0],".format(i)+"\n"+"    \t*9+data_eccgrp{{:d}}[ECCGRP_WIDTH - 1:ECCGRP_WIDTH]);".format(i)+"\n"
-        if (self.ECC_bits != 0):
-            ECC_DEF += "    *0+logic [{}:0]".format(ECC_WIDTH + ECCGRP_NUM - 1,)+"    *7+, ".join(["ecc_"+str(i) for i in range(self.ECC_Grp)])+"\n"
-            ECC_DEF = ECC_DEF.replace("\n\n", "\n").strip("\n")
-            self.RTL = self.RTL.replace("$ECC_DEFS$", "{:s}".format(ECC_DEF))
-        return self.RTL
+    #     # merge parsing ecc
+    #     for j in range(self.db.x):
+    #         ECC_RDATALIST.append("".join(["datax{}{}".format(j)]))
+    #     ECC_CHECK += "    *4+mem_dout = {{"+",".join(ECC_RDATALIST[:-1])+"}};\n"
+    #     for i in range(self.ECC_Grp):
+    #         tmp_high = (i + 1) * self.ECCGRP_Dwidth - 1
+    #         tmp_low = i * self.ECCGRP_Dwidth
+    #         tmp_ecc = self.Width * self.ECCGRP_Dwidth / self.ECC_Grp
+    #         DATATMPLIST.append("".join(["datatmp{{:d}}".format(i)]))
+    #         if (self.ECC_bits != 0):
+    #             if (self.ECCGRP_Dwidth * self.ECC_Grp != self.Width) and (i == self.ECC_Grp - 1):
+    #                 ECC_CHECK += "    *4+data_eccgrp{{:d}}.format(i)+ = {mem_dout[{}:{}],mem_dout[{}:{}]};".format(tmp_ecc_h, tmp_ecc_l, tmp_high, tmp_low)+"\n"
+    #             else:
+    #                 ECC_CHECK += "    *4+data_eccgrp{{:d}}.format(i)+ = data_eccgrp{{:d}}.format(i)+ = {mem_dout[{}:{}]};".format(tmp_high, tmp_low)+"\n"
+    #         else:
+    #             ECC_CHECK += "    *4+data_eccgrp{{:d}}.format(i)+ = data_eccgrp{{:d}}.format(i)+ = data_eccgrp{{:d}}.format(i)+;\n"
+    #             ECC_CHECK += "    *4+data_eccgrp{{:d}}.format(i)+ = ecc_func.con_rtl_ecc(data_eccgrp{{:d}}[ECCGRP_WIDTH - 1:0],".format(i)+"\n"+"    \t*9+data_eccgrp{{:d}}[ECCGRP_WIDTH - 1:ECCGRP_WIDTH]);".format(i)+"\n"
+    #     if (self.ECC_bits != 0):
+    #         ECC_DEF += "    *0+logic [{}:0]".format(ECC_WIDTH + ECCGRP_NUM - 1,)+"    *7+, ".join(["ecc_"+str(i) for i in range(self.ECC_Grp)])+"\n"
+    #         ECC_DEF = ECC_DEF.replace("\n\n", "\n").strip("\n")
+    #         self.RTL = self.RTL.replace("$ECC_DEFS$", "{:s}".format(ECC_DEF))
+    #     return self.RTL
 
     def Rep_ECC_INST(self):
         ECC_INST = ""
@@ -388,8 +388,7 @@ endgenerate
             PHY_RE += "assign phy_re_y{:d} = {}{};\n".format(j, "phy_re_reg", PHY_RE_SEL)
             PHY_WE += "assign phy_we_y{:d} = {}{};\n".format(j, "phy_we_reg", PHY_WE_SEL)
             PHY_RE_DLY += "assign phy_re_ydly{:d} <= #dly phy_re_y{:d};\n".format(j, j)
-            PHYWRAP_DOUT_TMP_LIST.append("{{:d}?{{:d}:0] phy_dout_x{{:d}y{:d}".format((self.db.Width * self.db.x) - 1, (self.db.Width * self.db.x) - 1, x, y))
-        for i in range(self.db.x):
+            PHYWRAP_DOUT_TMP_LIST.append("({%d{phy_re_y%d_dly}} & {"%((self.db.Width * self.db.x),j)+",".join(["phy_dout_x%dy%d"%(i,j) for i in range(self.db.x)[::-1]])+"})")
             PHY_RE = PHY_RE.replace("\n\n", "\n").strip("\n")
             PHY_WE = PHY_WE.replace("\n\n", "\n").strip("\n")
             PHY_RE_DLY = PHY_RE_DLY.replace("\n\n", "\n").strip("\n")
@@ -408,7 +407,7 @@ endgenerate
         self.GeneralProcess = ()
         self.Rep_CUTWRAP_INST = ()
         self.Rep_PHY_DB_INST = ()
-        self.Rep_BACKDOOR = ()
+        #self.Rep_BACKDOOR = ()
         self.Rep_ECC_DEF = ()
         self.Rep_ECC_INST = ()
         self.Rep_ECC_ASSIGN = ()

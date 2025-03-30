@@ -3,16 +3,16 @@ import sys
 sys.path.append("./fscripts/")
 
 from pprint import pprint  # ZLIN_DBG
-from Mem_1RW_template import Mem1RW
-from Mem_1RWM_template import Mem1RWM
-from Mem_1R1W_template import Mem1R1W
-from Mem_1R1WM_template import Mem1R1WM
+#from Mem_1RW_template import Mem1RW
+#from Mem_1RWM_template import Mem1RWM
+#from Mem_1R1W_template import Mem1R1W
+#from Mem_1R1WM_template import Mem1R1WM
 from Mem_1R1WA_template import Mem1R1WA
-from Tcam_1RWS_template import Tcam1RWS
+#from Tcam_1RWS_template import Tcam1RWS
 
 
 
-
+import MemTop_1R1WA_template
 
 
 
@@ -52,36 +52,37 @@ def json2ram(file_name, DIR="./"):
             ram[ram_attr_list["Type"]] = dict()
         ram[ram_attr_list["Type"]][ram_name] = ram_attr_list  # NOTE:all memory divided by Type
     for t in ram.keys():
-        if t == "1RW":
-            MemTop_1RW = MemTop_1RW_template.MemWrapTop()
-            MemTop_1RW.Initialize()
-            MemTop_1RW.loadjson(ram[t])
-            MemTop_1RW.DumpRTL(filename=os.path.join(DIR, "RAMWRAP_" + str(t) + "_TOP.sv"))
-        elif t == "1RWM":
-            MemTop_1RWM = MemTop_1RWM_template.MemWrapTop()
-            MemTop_1RWM.Initialize()
-            MemTop_1RWM.loadjson(ram[t])
-            MemTop_1RWM.DumpRTL(filename=os.path.join(DIR, "RAMWRAP_" + str(t) + "_TOP.sv"))
-        elif t == "1R1W":
-            MemTop_1R1W = MemTop_1R1W_template.MemWrapTop()
-            MemTop_1R1W.Initialize()
-            MemTop_1R1W.loadjson(ram[t])
-            MemTop_1R1W.DumpRTL(filename=os.path.join(DIR, "RAMWRAP_" + str(t) + "_TOP.sv"))
-        elif t == "1R1WM":
-            MemTop_1R1WM = MemTop_1R1WM_template.MemWrapTop()
-            MemTop_1R1WM.Initialize()
-            MemTop_1R1WM.loadjson(ram[t])
-            MemTop_1R1WM.DumpRTL(filename=os.path.join(DIR, "RAMWRAP_" + str(t) + "_TOP.sv"))
-        elif t == "1R1WA":
+        # if t == "1RW":
+        #     MemTop_1RW = MemTop_1RW_template.MemWrapTop()
+        #     MemTop_1RW.Initialize()
+        #     MemTop_1RW.loadjson(ram[t])
+        #     MemTop_1RW.DumpRTL(filename=os.path.join(DIR, "RAMWRAP_" + str(t) + "_TOP.sv"))
+        # elif t == "1RWM":
+        #     MemTop_1RWM = MemTop_1RWM_template.MemWrapTop()
+        #     MemTop_1RWM.Initialize()
+        #     MemTop_1RWM.loadjson(ram[t])
+        #     MemTop_1RWM.DumpRTL(filename=os.path.join(DIR, "RAMWRAP_" + str(t) + "_TOP.sv"))
+        # elif t == "1R1W":
+        #     MemTop_1R1W = MemTop_1R1W_template.MemWrapTop()
+        #     MemTop_1R1W.Initialize()
+        #     MemTop_1R1W.loadjson(ram[t])
+        #     MemTop_1R1W.DumpRTL(filename=os.path.join(DIR, "RAMWRAP_" + str(t) + "_TOP.sv"))
+        # elif t == "1R1WM":
+        #     MemTop_1R1WM = MemTop_1R1WM_template.MemWrapTop()
+        #     MemTop_1R1WM.Initialize()
+        #     MemTop_1R1WM.loadjson(ram[t])
+        #     MemTop_1R1WM.DumpRTL(filename=os.path.join(DIR, "RAMWRAP_" + str(t) + "_TOP.sv"))
+        # elif t == "1R1WA":
+        if t == "1R1WA":
             MemTop_1R1WA = MemTop_1R1WA_template.MemWrapTop()
             MemTop_1R1WA.Initialize()
             MemTop_1R1WA.loadjson(ram[t])
             MemTop_1R1WA.DumpRTL(filename=os.path.join(DIR, "RAMWRAP_" + str(t) + "_TOP.sv"))
-        elif t == "RWS":
-            TcamTop_1RWS = Tcam_1RWS_template.TcamWrapTop()
-            TcamTop_1RWS.Initialize()
-            TcamTop_1RWS.loadjson(ram[t])
-            TcamTop_1RWS.DumpRTL(filename=os.path.join(DIR, "TCAMWRAP_" + str(t) + "_TOP.sv"))
+        # elif t == "RWS":
+        #     TcamTop_1RWS = Tcam_1RWS_template.TcamWrapTop()
+        #     TcamTop_1RWS.Initialize()
+        #     TcamTop_1RWS.loadjson(ram[t])
+        #     TcamTop_1RWS.DumpRTL(filename=os.path.join(DIR, "TCAMWRAP_" + str(t) + "_TOP.sv"))
 
 
         else:
@@ -178,75 +179,76 @@ def gen_memwrapper(mdict, fadio_dict, DIR=""):
                             )
     db_depth = int(mdict["phy_depth"]) 
     db_width = int(mdict["phy_width"])
-    if (mdict["Type"] == "1RW"):
-        mem = Mem1RW()
-        Type_list = type_list
-        Depth = int(mdict["Depth"])
-        Width = int(mdict["Width"])
-        DB_Depth = db_depth
-        DB_Width = db_width
-        ECC_Group = int(mdict["ECC_GRP"])
-        ECC_Enable = mdict["ECC"]
-        DB_Name = (mdict["PhysicalDB"]).upper().strip()
-        Fadio_dict = fadio_dict
-        if (len(mdict["Prefix"].split()) > 0):
-            mem.Prefix = mdict["Prefix"]
-        mem.Initialize()
-        mem.DumpRTL(filename=os.path.join(DIR, mem.BaseName + ".sv"))
-        mem.DumpLST(filename=os.path.join(DIR, mem.BaseName + ".f"))
-        mem.DumpTLIST(filename=f"$PROJECT_ROOT/rtl/common/mem_list/" + mem.BaseName + ".sv")
-    elif (mdict["Type"] == "1RWM"):
-        mem = Mem1RWM()
-        Type_list = type_list
-        Depth = int(mdict["Depth"])
-        Width = int(mdict["Width"])
-        DB_Depth = db_depth
-        DB_Width = db_width
-        ECC_Group = int(mdict["ECC_GRP"])
-        ECC_Enable = mdict["ECC"]
-        DB_Name = (mdict["PhysicalDB"]).upper().strip()
-        Fadio_dict = fadio_dict
-        if (len(mdict["Prefix"].split()) > 0):
-            mem.Prefix = mdict["Prefix"]
-        mem.Initialize()
-        mem.DumpRTL(filename=os.path.join(DIR, mem.BaseName + ".sv"))
-        mem.DumpLST(filename=os.path.join(DIR, mem.BaseName + ".f"))
-        mem.DumpTLIST(filename=f"$PROJECT_ROOT/rtl/common/mem_list/" + mem.BaseName + ".sv")
-    elif (mdict["Type"] == "1R1W"):
-        mem = Mem1R1W()
-        Type_list = type_list
-        Depth = int(mdict["Depth"])
-        Width = int(mdict["Width"])
-        DB_Depth = db_depth
-        DB_Width = db_width
-        ECC_Group = int(mdict["ECC_GRP"])
-        ECC_Enable = mdict["ECC"]
-        DB_Name = (mdict["PhysicalDB"]).upper().strip()
-        Fadio_dict = fadio_dict
-        if (len(mdict["Prefix"].split()) > 0):
-            mem.Prefix = mdict["Prefix"]
-        mem.Initialize()
-        mem.DumpRTL(filename=os.path.join(DIR, mem.BaseName + ".sv"))
-        mem.DumpLST(filename=os.path.join(DIR, mem.BaseName + ".f"))
-        mem.DumpTLIST(filename=f"$PROJECT_ROOT/rtl/common/mem_list/" + mem.BaseName + ".sv")
-    elif (mdict["Type"] == "1R1WM"):
-        mem = Mem1R1WM()
-        Type_list = type_list
-        Depth = int(mdict["Depth"])
-        Width = int(mdict["Width"])
-        DB_Depth = db_depth
-        DB_Width = db_width
-        ECC_Group = int(mdict["ECC_GRP"])
-        ECC_Enable = mdict["ECC"]
-        DB_Name = (mdict["PhysicalDB"]).upper().strip()
-        Fadio_dict = fadio_dict
-        if (len(mdict["Prefix"].split()) > 0):
-            mem.Prefix = mdict["Prefix"]
-        mem.Initialize()
-        mem.DumpRTL(filename=os.path.join(DIR, mem.BaseName + ".sv"))
-        mem.DumpLST(filename=os.path.join(DIR, mem.BaseName + ".f"))
-        mem.DumpTLIST(filename=f"$PROJECT_ROOT/rtl/common/mem_list/" + mem.BaseName + ".sv")
-    elif (mdict["Type"] == "1R1WA"):
+    # if (mdict["Type"] == "1RW"):
+    #     mem = Mem1RW()
+    #     Type_list = type_list
+    #     Depth = int(mdict["Depth"])
+    #     Width = int(mdict["Width"])
+    #     DB_Depth = db_depth
+    #     DB_Width = db_width
+    #     ECC_Group = int(mdict["ECC_GRP"])
+    #     ECC_Enable = mdict["ECC"]
+    #     DB_Name = (mdict["PhysicalDB"]).upper().strip()
+    #     Fadio_dict = fadio_dict
+    #     if (len(mdict["Prefix"].split()) > 0):
+    #         mem.Prefix = mdict["Prefix"]
+    #     mem.Initialize()
+    #     mem.DumpRTL(filename=os.path.join(DIR, mem.BaseName + ".sv"))
+    #     mem.DumpLST(filename=os.path.join(DIR, mem.BaseName + ".f"))
+    #     mem.DumpTLIST(filename=f"$PROJECT_ROOT/rtl/common/mem_list/" + mem.BaseName + ".sv")
+    # elif (mdict["Type"] == "1RWM"):
+    #     mem = Mem1RWM()
+    #     Type_list = type_list
+    #     Depth = int(mdict["Depth"])
+    #     Width = int(mdict["Width"])
+    #     DB_Depth = db_depth
+    #     DB_Width = db_width
+    #     ECC_Group = int(mdict["ECC_GRP"])
+    #     ECC_Enable = mdict["ECC"]
+    #     DB_Name = (mdict["PhysicalDB"]).upper().strip()
+    #     Fadio_dict = fadio_dict
+    #     if (len(mdict["Prefix"].split()) > 0):
+    #         mem.Prefix = mdict["Prefix"]
+    #     mem.Initialize()
+    #     mem.DumpRTL(filename=os.path.join(DIR, mem.BaseName + ".sv"))
+    #     mem.DumpLST(filename=os.path.join(DIR, mem.BaseName + ".f"))
+    #     mem.DumpTLIST(filename=f"$PROJECT_ROOT/rtl/common/mem_list/" + mem.BaseName + ".sv")
+    # elif (mdict["Type"] == "1R1W"):
+    #     mem = Mem1R1W()
+    #     Type_list = type_list
+    #     Depth = int(mdict["Depth"])
+    #     Width = int(mdict["Width"])
+    #     DB_Depth = db_depth
+    #     DB_Width = db_width
+    #     ECC_Group = int(mdict["ECC_GRP"])
+    #     ECC_Enable = mdict["ECC"]
+    #     DB_Name = (mdict["PhysicalDB"]).upper().strip()
+    #     Fadio_dict = fadio_dict
+    #     if (len(mdict["Prefix"].split()) > 0):
+    #         mem.Prefix = mdict["Prefix"]
+    #     mem.Initialize()
+    #     mem.DumpRTL(filename=os.path.join(DIR, mem.BaseName + ".sv"))
+    #     mem.DumpLST(filename=os.path.join(DIR, mem.BaseName + ".f"))
+    #     mem.DumpTLIST(filename=f"$PROJECT_ROOT/rtl/common/mem_list/" + mem.BaseName + ".sv")
+    # elif (mdict["Type"] == "1R1WM"):
+    #     mem = Mem1R1WM()
+    #     Type_list = type_list
+    #     Depth = int(mdict["Depth"])
+    #     Width = int(mdict["Width"])
+    #     DB_Depth = db_depth
+    #     DB_Width = db_width
+    #     ECC_Group = int(mdict["ECC_GRP"])
+    #     ECC_Enable = mdict["ECC"]
+    #     DB_Name = (mdict["PhysicalDB"]).upper().strip()
+    #     Fadio_dict = fadio_dict
+    #     if (len(mdict["Prefix"].split()) > 0):
+    #         mem.Prefix = mdict["Prefix"]
+    #     mem.Initialize()
+    #     mem.DumpRTL(filename=os.path.join(DIR, mem.BaseName + ".sv"))
+    #     mem.DumpLST(filename=os.path.join(DIR, mem.BaseName + ".f"))
+    #     mem.DumpTLIST(filename=f"$PROJECT_ROOT/rtl/common/mem_list/" + mem.BaseName + ".sv")
+    # elif (mdict["Type"] == "1R1WA"):
+    if (mdict["Type"] == "1R1WA"):
         mem = Mem1R1WA()
         Type_list = type_list
         Depth = int(mdict["Depth"])
@@ -263,23 +265,23 @@ def gen_memwrapper(mdict, fadio_dict, DIR=""):
         mem.DumpRTL(filename=os.path.join(DIR, mem.BaseName + ".sv"))
         mem.DumpLST(filename=os.path.join(DIR, mem.BaseName + ".f"))
         mem.DumpTLIST(filename=f"$PROJECT_ROOT/rtl/common/mem_list/" + mem.BaseName + ".sv")
-    elif (mdict["Type"] == "RWS"):
-        mem = Tcam1RWS()
-        Type_list = type_list
-        Depth = int(mdict["Depth"])
-        Width = int(mdict["Width"])
-        DB_Depth = db_depth
-        DB_Width = db_width
-        ECC_Group = int(mdict["ECC_GRP"])
-        ECC_Enable = mdict["ECC"]
-        DB_Name = (mdict["PhysicalDB"]).upper().strip()
-        Fadio_dict = fadio_dict
-        if (len(mdict["Prefix"].split()) > 0):
-            mem.Prefix = mdict["Prefix"]
-        mem.Initialize()
-        mem.DumpRTL(filename=os.path.join(DIR, mem.BaseName + ".sv"))
-        mem.DumpLST(filename=os.path.join(DIR, mem.BaseName + ".f"))
-        mem.DumpTLIST(filename=f"$PROJECT_ROOT/rtl/common/mem_list/" + mem.BaseName + ".sv")
+    # elif (mdict["Type"] == "RWS"):
+    #     mem = Tcam1RWS()
+    #     Type_list = type_list
+    #     Depth = int(mdict["Depth"])
+    #     Width = int(mdict["Width"])
+    #     DB_Depth = db_depth
+    #     DB_Width = db_width
+    #     ECC_Group = int(mdict["ECC_GRP"])
+    #     ECC_Enable = mdict["ECC"]
+    #     DB_Name = (mdict["PhysicalDB"]).upper().strip()
+    #     Fadio_dict = fadio_dict
+    #     if (len(mdict["Prefix"].split()) > 0):
+    #         mem.Prefix = mdict["Prefix"]
+    #     mem.Initialize()
+    #     mem.DumpRTL(filename=os.path.join(DIR, mem.BaseName + ".sv"))
+    #     mem.DumpLST(filename=os.path.join(DIR, mem.BaseName + ".f"))
+    #     mem.DumpTLIST(filename=f"$PROJECT_ROOT/rtl/common/mem_list/" + mem.BaseName + ".sv")
     else:
         logging.error("This Mem Type:%s has not been supported yet", mdict["Type"])
         return
