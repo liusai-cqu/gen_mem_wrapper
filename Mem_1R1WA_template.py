@@ -4,26 +4,612 @@ import sys
 import argparse
 import math
 import MemBaseClass
-import synopsys_db_mem_inst_template
+# import synopsys_db_mem_inst_template
+synopsys_db_mem_inst_template = """"""
 
 template_1R1WA = """
-//sTyPEs memory wrapper, script generated and dont edit!
 `ifndef GM_$BaseName$_SV_
 `define GM_$BaseName$_SV_
+
+module $BaseName$ #(
+    parameter MEMPHY_CTRL_CFG_W = 24,
+    parameter DEPTH             = $DEPTHS$,
+    parameter WIDTH             = $WIDTHS$,
+    parameter ASYN_RST_EN       = 0,    //default sync reset
+    parameter INPUTPIPELINE = 0,
+    parameter DOUTPIPELINE  = 1
+)(
+    //config
+    input   logic [MEMPHY_CTRL_CFG_W-1:0]    memphy_ctrl_cfg,
+    input   logic                             i_clkw,
+    input   logic                             i_clkr,
+    input   logic                             i_rstw,
+    input   logic                             i_rstr,
+    //----------------//
+    input   logic                             i_re,
+    input   logic [WIDTH-1:0]                 i_we,
+    input   logic [$clog2(DEPTH)-1:0]         i_raddr,
+    input   logic [$clog2(DEPTH)-1:0]         i_waddr,
+    input   logic [WIDTH-1:0]                 i_din,
+    output  logic [WIDTH-1:0]                 o_dout,
+    //----ecc----//
+    input   logic                             i_set_ecc_sb,
+    input   logic                             i_set_ecc_db,
+    input   logic                             i_ecc_bypass,
+    output  logic                             o_ecc_sb,
+    output  logic                             o_ecc_db,
+    output  logic [$clog2(DEPTH)-1:0]         o_ecc_addr
+);
+
+//Reserve cutwrap & pipeline DEF
+//----------------------------//
+logic                           we_ppn    ;
+logic                           re_ppn    ;
+logic [$clog2(DEPTH)-1:0]       cutwrap_rvld   ;
+logic [$clog2(DEPTH)-1:0]       waddr_ppn   ;
+logic [$clog2(DEPTH)-1:0]       raddr_ppn   ;
+logic [WIDTH-1:0]               din_ppn     ;
+logic [WIDTH-1:0]               dout_ppn    ;
+logic                           ecc_sb_ppn  ;
+logic                           ecc_db_ppn  ;
+logic [$clog2(DEPTH)-1:0]       ecc_addr_ppn;
+
+//Reserve cutWrap Instantiate
+//----------------------------//
+$CUTWRAP_INST$
+
+//Pipeline Config
+//Here the RAMWRAP_PIPE parameter is greater than 1 to take effect
+//----------------------------//
+generate
+    if (DOUTPIPELINE==0) begin:CUT_REDLY_EQ_ONE_BLK
+        data_pipe #(
+           .DATA_W     (1),
+           .PIPE_NUM   (INPUTPIPELINE+1),
+           .PIPE_MUX_EN(0),
+            // 0: directly use the all pipe structure;
+            // 0: the input data is directly write into MUX array;
+            // 0: the output from MUX array will be directly outputted
+           .FLOP_IN    (0),
+           .FLOP_OUT   (0)
+        ) U_CUT_REDLY_PIPE (
+            //----clk&rst----//
+           .i_clk   (i_clkr),
+           .i_rst   (i_rstr),
+            //----pipe in----//
+           .i_vld   (1'b1),
+           .i_data  (i_re),
+            //----pipe out----//
+           .o_vld_pp(),
+           .o_data_pp(cutwrap_rvld)
+        );
+    end//CUT_REDLY_EQ_ONE_BLK
+    else begin:CUT_REDLY_EQ_TWO_BLK
+        data_pipe #(
+           .DATA_W     (1),
+           .PIPE_NUM   (INPUTPIPELINE+2),
+           .PIPE_MUX_EN(0),
+            // 0: directly use the all pipe structure;
+            // 0: the input data is directly write into MUX array;
+            // 0: the output from MUX array will be directly outputted
+           .FLOP_IN    (0),
+           .FLOP_OUT   (0)
+        ) U_CUT_REDLY_PIPE (
+            //----clk&rst----//
+           .i_clk   (i_clkr),
+           .i_rst   (i_rstr),
+            //----pipe in----//
+           .i_vld   (1'b1),
+           .i_data  (i_re),
+            //----pipe out----//
+           .o_vld_pp(),
+           .o_data_pp(cutwrap_rvld)
+        );
+    end//CUT_REDLY_EQ_TWO_BLK
+endgenerate
+
+generate
+    if (DOUTPIPELINE == 0 || DOUTPIPELINE == 1) begin:NO_PIPE_AF_ECC_CHK_BLK
+        assign o_dout   = dout_ppn    ;
+        assign o_ecc_sb = ecc_sb_ppn  ;
+        assign o_ecc_db = ecc_db_ppn  ;
+        assign o_ecc_addr = ecc_addr_ppn ;
+    end//NO_PIPE_AF_ECC_CHK_BLK
+    else begin:PIPE_ONE_AF_ECC_CHK_BLK
+        data_pipe #(
+           .DATA_W     (WIDTH+($clog2(DEPTH))),
+           .PIPE_NUM   (DOUTPIPELINE-1),
+           .PIPE_MUX_EN(0),
+            // 0: directly use the all pipe structure;
+            // 0: the input data is directly write into MUX array;
+            // 0: the output from MUX array will be directly outputted
+           .FLOP_IN    (0),
+           .FLOP_OUT   (0)
+        ) U_DOUT_ECC_ADDR_PIPE (
+            //----clk&rst----//
+           .i_clk   (i_clkr),
+           .i_rst   (i_rstr),
+            //----pipe in----//
+           .i_vld   (cutwrap_rvld),
+           .i_data  ({dout_ppn,ecc_addr_ppn}),
+            //----pipe out----//
+           .o_vld_pp(),
+           .o_data_pp({o_dout,o_ecc_addr})
+        );
+    end
+endgenerate
+
+generate
+    if (INPUTPIPELINE == 0 || INPUTPIPELINE == 1) begin:NO_EXTRA_INPUT_PIPE_BLK
+        assign we_ppn   = i_we    ;
+        assign re_ppn   = i_re    ;
+        assign waddr_ppn = i_waddr ;
+        assign raddr_ppn = i_raddr ;
+        assign din_ppn  = i_din   ;
+    end//NO_EXTRA_INPUT_PIPE_BLK
+    else begin:EXTRA_INPUT_PIPE_BLK
+        data_pipe #(
+           .DATA_W     (WIDTH+($clog2(DEPTH))),
+           .PIPE_NUM   (INPUTPIPELINE-1),
+           .PIPE_MUX_EN(0),
+            // 0: directly use the all pipe structure;
+            // 0: the input data is directly write into MUX array;
+            // 0: the output from MUX array will be directly outputted
+           .FLOP_IN    (0),
+           .FLOP_OUT   (0)
+        ) U_DIN_WADDR_PIPE (
+            //----clk&rst----//
+           .i_clk   (i_clkw),
+           .i_rst   (i_rstw),
+            //----pipe in----//
+           .i_vld   (1'b1),
+           .i_data  ({i_din,i_waddr}),
+            //----pipe out----//
+           .o_vld_pp(we_ppn),
+           .o_data_pp({din_ppn,waddr_ppn})
+        );
+        data_pipe #(
+           .DATA_W     ($clog2(DEPTH)),
+           .PIPE_NUM   (INPUTPIPELINE-1),
+           .PIPE_MUX_EN(0),
+            // 0: directly use the all pipe structure;
+            // 0: the input data is directly write into MUX array;
+            // 0: the output from MUX array will be directly outputted
+           .FLOP_IN    (0),
+           .FLOP_OUT   (0)
+        ) U_RADDR_PIPE (
+            //----clk&rst----//
+           .i_clk   (i_clkr),
+           .i_rst   (i_rstr),
+            //----pipe in----//
+           .i_vld   (1'b1),
+           .i_data  (i_raddr),
+            //----pipe out----//
+           .o_vld_pp(re_ppn),
+           .o_data_pp(raddr_ppn)
+        );
+    end
+endgenerate
+
+//PHY_BACKDOOR
+//physical memory backdoor tasks
+//----------------------------//
+`ifdef PHY_BACKDOOR
+localparam ECCGRP_NUM  = $ECCGRPNUM$;
+localparam ECC_WIDTH   = $ECCWIDTH$;
+localparam ECCGRP_DWIDTH = $ECCGRPDWIDTH$-$ECC_WIDTH$/$ECCGRP_NUM$;
+localparam ECCGRP_WIDTH = $ECCGRPWIDTH$;
+
+$READ_DEF$
+logic [ECCGRP_WIDTH*ECCGRP_NUM-1:0] mem_dout;
+task read_word(input [$clog2(DEPTH)-1:0] address_r,
+               output [WIDTH-1:0] data_out,
+               output           ecc_sb,
+               output           ecc_db);
+    ecc_function#(.WIDTH(ECCGRP_DWIDTH)) ecc_func;
+    ecc_func = new();
+$READ_WORD$
+endtask
+
+$WRITE_DEF$
+task write_word(input [$clog2(DEPTH)-1:0] address_w,
+                input [WIDTH-1:0] data_in,
+                int idx1=1,      int idx2=1);
+    logic [WIDTH+ECC_WIDTH-1:0] task_din;
+    logic [ECC_WIDTH-1:0]       ecc_data;
+    ecc_function#(.WIDTH(ECCGRP_DWIDTH)) ecc_func;
+    ecc_func = new();
+$ECC_PACKET$
+    if(ECC_WIDTH>0)
+        task_din = {ecc_data,data_in};
+    else
+        task_din = data_in;
+    if((idx1>=WIDTH+ECC_WIDTH)||(idx2>=WIDTH+ECC_WIDTH))
+        $error(" << Flip parameter out of range,Please check the parameters!>>");
+    if(idx1 >=0) task_din[idx1] = ~task_din[idx1];
+    if(idx2 >=0) task_din[idx2] = ~task_din[idx2];
+$WRITE_WORD$
+endtask
+
+$GLB_WRITE_DEF$
+task glb_write_word(
+    input [WIDTH-1:0] data_in
+);
+    logic [WIDTH+ECC_WIDTH-1:0] task_din;
+    logic [ECC_WIDTH-1:0]       ecc_data;
+    ecc_function#(.WIDTH(ECCGRP_DWIDTH)) ecc_func;
+    ecc_func = new();
+$ECC_PACKET$
+    task_din = {ecc_data,data_in};
+$GLB_WRITE_WORD$
+endtask
+`endif
+
+endmodule
+
+//cut wrapper of $TYPE$ $DEPTH$X$WIDTH$
+//----------------------------------------//
+module $BaseName$_cutwrap #(
+    parameter MEMPHY_CTRL_CFG_W = 21,
+    parameter INPUTPIPELINE = 1,
+    parameter DOUTPIPELINE  = 1,
+    parameter ASYN_RST_EN   = 0,    //default sync reset
+    parameter DEPTH         = $DEPTH$,
+    parameter WIDTH         = $WIDTH$
+)(
+    input   [MEMPHY_CTRL_CFG_W-1:0]memphy_ctrl_cfg,
+    input   logic                   i_cut_clkw,
+    input   logic                   i_cut_clkr,
+    input   logic                   i_cut_rstw,
+    input   logic                   i_cut_rstr,
+    //----------------//
+    input   logic                   i_cut_re,
+    input   logic [WIDTH-1:0]       i_cut_we,
+    input   logic [$clog2(DEPTH)-1:0] i_cut_raddr,
+    input   logic [$clog2(DEPTH)-1:0] i_cut_waddr,
+    input   logic [WIDTH-1:0]       i_cut_din,
+    output  logic [WIDTH-1:0]       o_cut_dout,
+    //----ecc----//
+    input   logic                   i_cut_set_ecc_sb,
+    input   logic                   i_cut_set_ecc_db,
+    input   logic                   i_cut_ecc_bypass,
+    output  logic                   o_cut_ecc_sb,
+    output  logic                   o_cut_ecc_db,
+    output  logic [$clog2(DEPTH)-1:0] o_cut_ecc_addr
+);
+
+//localparam
+//----------------------------//
+localparam ECCGRP_NUM  = $ECCGRPNUM$;
+localparam ECC_WIDTH   = $ECCWIDTH$;
+localparam ECCGRP_DWIDTH = $ECCGRPDWIDTH$;
+localparam ECCGRP_WIDTH = $ECCGRPWIDTH$;
+
+//ecc logic Instantiation
+//----------------------------//
+$ECC_DEF$
+
+//ecc signal merging and splitting
+//----------------------------//
+assign ecc_gen_din = $ECC_GEN_DIN$;
+$ECC_N$
+$ECC_CHK_DIN$
+assign ecc_sb_merge = $ECC_SB_MERGE$;
+assign ecc_db_merge = $ECC_DB_MERGE$;
+
+assign cut_phy_din   = $CUT_PHY_DIN$;
+assign cut_phy_dout_tmp = $CUT_PHY_DOUT$;
+assign o_cut_dout    = $CUT_DOUT$;
+
+//ECC flag set
+//----------------------------//
+generate
+    if(ASYN_RST_EN==0)begin:SYNC_RST
+        always_ff @(posedge i_cut_clkr) begin
+            if(i_cut_rstr)begin:
+                set_sb_dly <= 1'h0 ;
+                set_db_dly <= 1'h0 ;
+            end else begin:
+                set_sb_dly <= i_cut_set_ecc_sb ;
+                set_db_dly <= i_cut_set_ecc_db ;
+            end
+        end
+        always @(posedge i_cut_clkr) begin
+            if(i_cut_rstr) begin:
+                ecc_sb_flag <= 1'b0 ;
+            end else if(w_set_sb_rise) begin:
+                ecc_sb_flag <= 1'b1 ;
+            end else if(cutwrap_rdata_vld) begin:
+                ecc_sb_flag <= 1'b0 ;
+            end
+        end
+        always @(posedge i_cut_clkr) begin
+            if(i_cut_rstr) begin:
+                ecc_db_flag <= 1'b0 ;
+            end else if(w_set_db_rise) begin:
+                ecc_db_flag <= 1'b1 ;
+            end else if(cutwrap_rdata_vld) begin:
+                ecc_db_flag <= 1'b0 ;
+            end
+        end
+    end
+    else begin:ASYN_RST
+        always_ff @(posedge i_cut_clkr or posedge i_cut_rstr) begin
+            if(i_cut_rstr) begin:
+                set_sb_dly <= 1'h0 ;
+                set_db_dly <= 1'h0 ;
+            end else begin:
+                set_sb_dly <= i_cut_set_ecc_sb ;
+                set_db_dly <= i_cut_set_ecc_db ;
+            end
+        end
+        always @(posedge i_cut_clkr or posedge i_cut_rstr) begin
+            if(i_cut_rstr) begin:
+                ecc_sb_flag <= 1'b0 ;
+            end else if(w_set_sb_rise) begin:
+                ecc_sb_flag <= 1'b1 ;
+            end else if(cutwrap_rdata_vld) begin:
+                ecc_sb_flag <= 1'b0 ;
+            end
+        end
+        always @(posedge i_cut_clkr or posedge i_cut_rstr) begin
+            if(i_cut_rstr) begin:
+                ecc_db_flag <= 1'b0 ;
+            end else if(w_set_db_rise) begin:
+                ecc_db_flag <= 1'b1 ;
+            end else if(cutwrap_rdata_vld) begin:
+                ecc_db_flag <= 1'b0 ;
+            end
+        end
+    end
+endgenerate
+
+assign w_set_sb_rise = (set_sb_dly,i_cut_set_ecc_sb) == 2'b01;
+assign w_set_db_rise = (set_db_dly,i_cut_set_ecc_db) == 2'b01;
+assign o_cut_ecc_sb = cutwrap_rdata_vld? ecc_sb_flag | ecc_sb_merge : 1'b0;
+assign o_cut_ecc_db = cutwrap_rdata_vld? ecc_db_flag | ecc_db_merge : 1'b0;
+
+//Pipeline Config
+//Here the RAMWRAP_PIPE parameter is Only one shot
+//----------------------------//
+data_pipe #(
+   .DATA_W     (1),
+   .PIPE_NUM   (1),
+   .PIPE_MUX_EN(0),
+    // 0: directly use the all pipe structure;
+    // 0: the input data is directly write into MUX array;
+    // 0: the output from MUX array will be directly outputted
+   .FLOP_IN    (0),
+   .FLOP_OUT   (0)
+) U_PRE_REDLY_PIPE (
+    //----clk&rst----//
+   .i_clk   (i_cut_clkr),
+   .i_rst   (i_cut_rstr),
+    //----pipe in----//
+   .i_vld   (1'b1),
+   .i_data  (i_cut_re_ppl),
+    //----pipe out----//
+   .o_vld_pp(),
+   .o_data_pp(cut_re_ppl_dly)
+);
+
+data_pipe #(
+   .DATA_W     ($clog2(DEPTH)),
+   .PIPE_NUM   (1),
+   .PIPE_MUX_EN(0),
+    // 0: directly use the all pipe structure;
+    // 0: the input data is directly write into MUX array;
+    // 0: the output from MUX array will be directly outputted
+   .FLOP_IN    (0),
+   .FLOP_OUT   (0)
+) U_CUTADDR_PIPE (
+    //----clk&rst----//
+   .i_clk   (i_cut_clkr),
+   .i_rst   (i_cut_rstr),
+    //----pipe in----//
+   .i_vld   (1'b1),
+   .i_data  (i_cut_raddr_ppl),
+    //----pipe out----//
+   .o_vld_pp(),
+   .o_data_pp(raddr_ppn)
+);
+
+generate
+    if (DOUTPIPELINE == 0) begin:NO_PIPE_AF_DB_BLK
+        assign cut_phy_dout    = cut_phy_dout_pre ;
+        assign cutwrap_rdata_vld = cut_re_ppl_dly ;
+        assign o_cut_ecc_addr   = cut_raddr_ppl_dly ;
+    end//NO_PIPE_AF_DB_BLK
+    else begin:PIPE_AF_DB_BLK
+        data_pipe #(
+           .DATA_W     (($clog2(DEPTH))+(ECCGRP_WIDTH+ECCGRP_NUM)),
+           .PIPE_NUM   (1),
+           .PIPE_MUX_EN(0),
+            // 0: directly use the all pipe structure;
+            // 0: the input data is directly write into MUX array;
+            // 0: the output from MUX array will be directly outputted
+           .FLOP_IN    (0),
+           .FLOP_OUT   (0)
+        ) U_ECCADDR_RDATA_PIPE (
+            //----clk&rst----//
+           .i_clk   (i_cut_clkr),
+           .i_rst   (i_cut_rstr),
+            //----pipe in----//
+           .i_vld   (cut_re_ppl_dly),
+           .i_data  ({cut_raddr_ppl_dly,cut_phy_dout_pre}),
+            //----pipe out----//
+           .o_vld_pp (cutwrap_rdata_vld),
+           .o_data_pp ({o_cut_ecc_addr,cut_phy_dout})
+        );
+    end
+endgenerate
+
+generate
+    if (INPUTPIPELINE == 0) begin:NO_PIPE_AF_ECC_GEN_BLK
+        assign cut_we_ppl   = i_cut_we    ;
+        assign cut_re_ppl   = i_cut_re    ;
+        assign cut_waddr_ppl = i_cut_waddr ;
+        assign cut_raddr_ppl = i_cut_raddr ;
+        assign cut_phy_din_ppl = cut_phy_din ;
+    end//NO_PIPE_AF_ECC_GEN_BLK
+    else begin:PIPE_ONE_AF_ECC_GEN_BLK
+        data_pipe #(
+           .DATA_W     ($clog2(DEPTH)+WIDTH+ECC_WIDTH),
+           .PIPE_NUM   (1),
+           .PIPE_MUX_EN(0),
+            // 0: directly use the all pipe structure;
+            // 0: the input data is directly write into MUX array;
+            // 0: the output from MUX array will be directly outputted
+           .FLOP_IN    (0),
+           .FLOP_OUT   (0)
+        ) U_WADDR_WDATA_PIPE (
+            //----clk&rst----//
+           .i_clk   (i_cut_clkw),
+           .i_rst   (i_cut_rstw),
+            //----pipe in----//
+           .i_vld   (1'b1),
+           .i_data  ({i_cut_waddr,cut_phy_din}),
+            //----pipe out----//
+           .o_vld_pp (cut_we_ppl),
+           .o_data_pp ({cut_waddr_ppl,cut_phy_din_ppl})
+        );
+        data_pipe #(
+           .DATA_W     ($clog2(DEPTH)),
+           .PIPE_NUM   (1),
+           .PIPE_MUX_EN(0),
+            // 0: directly use the all pipe structure;
+            // 0: the input data is directly write into MUX array;
+            // 0: the output from MUX array will be directly outputted
+           .FLOP_IN    (0),
+           .FLOP_OUT   (0)
+        ) U_RADDR_PIPE (
+            //----clk&rst----//
+           .i_clk   (i_cut_clkr),
+           .i_rst   (i_cut_rstr),
+            //----pipe in----//
+           .i_vld   (1'b1),
+           .i_data  (i_cut_raddr),
+            //----pipe out----//
+           .o_vld_pp (cut_re_ppl),
+           .o_data_pp (cut_raddr_ppl)
+        );
+    end
+endgenerate
+
+//PHYWRAPPER
+//Realize memory splicing
+//----------------------------//
+$PHYWRAP_DEF$
+reg [WIDTH+ECC_WIDTH-1:0] phy_din ;
+//physical memory instantiation
+//----------------------------//
+$PHYWRAP_INST$
+
+assign phy_din        = cut_phy_din_ppl;
+assign cut_phy_dout_pre = $PHY_DOUTS$;
+//----//
+$PHY_RE$
+assign phy_raddr      = $PHY_RADDRS$;
+assign phy_waddr      = $PHY_WADDRS$;
+assign phy_dout_tmp   = $PHY_DOUT_TMPS$;
+always_ff @(posedge i_cut_clkr) begin
+    $PHY_RE_OLT$
+end
+
+endmodule
+
+`endif
+
+//PHYSICAL_DB
+//use vendor physical memory
+//----------------------------//
+`ifndef $PHYWRAPNAME$_SV
+`define $PHYWRAPNAME$_SV
+module $PHYWRAPNAME$ #(
+    parameter MEMPHY_CTRL_CFG_W    = 21,
+    parameter DB_WIDTH             = $DBWIDTH$,
+    parameter DB_ADDRWIDTH         = $DBADDRWIDTH$
+)(
+    //config default is {1'b0,1'b0,1'b0,1'b1,4'b0011,1'b1,4'b0011,1'b1,4'b0011,3'b101,3'b000}
+    //TEST1:[23],TEST_RNW:[22],TESTRM[21],RME:[20],RM:[19:16],RMA:[15],RMA:[14:11],RMB:[10],EMB:[9:6],WA:[5:3],MPULSE:[2:0]}
+    input   [MEMPHY_CTRL_CFG_W-1:0] memphy_ctrl_cfg,
+    input   logic                   i_phy_clkw,
+    input   logic                   i_phy_clkr,
+    input   logic                   i_phy_re,
+    input   logic                   i_phy_we,
+    input   [DB_ADDRWIDTH-1:0]      i_phy_raddr,
+    input   [DB_ADDRWIDTH-1:0]      i_phy_waddr,
+    input   [DB_WIDTH-1:0]          i_phy_din,
+    output  logic [DB_WIDTH-1:0]    o_phy_dout
+);
+
+$PHY_DB_INST$
+
+endmodule
+`endif
+
+//Script testing is dedicated, no real physical_db is required
+//----------------------------//
+`ifdef FAKE_PHY_MEM
+`ifndef $DBNAME$_SV
+`define $DBNAME$_SV
+module $MDU_DBNAME$#(
+    parameter DB_WIDTH     = $DBWIDTH$,
+    parameter DB_ADDRWIDTH = $DBADDRWIDTH$
+)(
+    input           CLKR,
+    input           REB,
+    input           WEB,
+    input [DB_ADDRWIDTH-1:0] ARA,
+    input [DB_ADDRWIDTH-1:0] AMA,
+    input [DB_ADDRWIDTH-1:0] AMB,
+    input [DB_WIDTH-1:0]    DADIO,
+    input           REDENIO,
+    input           DFEN,
+    input           DFTBYP,
+    input           STC,
+    input [1:0]     SID,
+    output [1:0]    SOC,
+    output [1:0]    SOD,
+    input [1:0]     DSLPLV,
+    input [1:0]     KP,
+    input [1:0]     WCT,
+    input [1:0]     RCT
+);
+
+//---- readMemory;
+task readMemory;
+    input [DB_ADDRWIDTH-1:0] address_w;
+    $display ("This is a fake physical DB");
+endtask
+
+//---- writeMemory;
+task writeMemory;
+    input [DB_ADDRWIDTH-1:0] address_r;
+    input [DB_ADDRWIDTH-1:0] data_in;
+    input [DB_WIDTH-1:0]    data_out;
+    $display ("This is a fake physical DB");
+endtask
+
+task printMemory;
+    $display ("This is a fake physical DB");
+endtask
+endmodule
 `endif
 `endif
+
 """
 
 class Mem1R1WA(MemBaseClass.MemBase_Cut):
-    def __init__(self, Depth, width, DB_Depth, DB_Width, DB_Name, ECC_Grp, Fadio_dict, Type_list, ECC_enable="NO"):
-        super().__init__(Depth, width, DB_Depth, DB_Width, DB_Name, ECC_Grp, Fadio_dict, Type_list, ECC_enable)
+    def __init__(self, Depth, Width, DB_Depth, DB_Width, DB_Name, ECC_Grp, Fadio_dict, Type_list, ECC_enable="NO"):
+        super().__init__(Depth, Width, DB_Depth, DB_Width, DB_Name, ECC_Grp, Fadio_dict, Type_list, ECC_enable)
         logging.debug("==Generating Mem1R1WA Obj.===")
         self.Type = "1R1WA"
         self.RTL = template_1R1WA
 
     def Rep_CUTWRAP_INST(self):
         CUTWRAP_INST = """
-{:s}_CUTWRAP_INST = 
+{:s}_cutwrap = 
    .MEMPHY_CTRL_CFG_W(MEMPHY_CTRL_CFG_W),
    .ASYNC_RST_EN(ASYNC_RST_EN),
    .INPUTPIPELINE(INPUTPIPELINE),
@@ -44,7 +630,7 @@ cutwrap (
    .o_cut_ecc_sb      ( ecc_sb_ppn      ),
    .o_cut_ecc_addr    ( ecc_addr_ppn    )
 );
-"""
+""".format(self.BaseName)
         CUTWRAP_INST = CUTWRAP_INST.replace("\n\n", "\n").strip("\n")
         self.RTL = self.RTL.replace("$CUTWRAP_INST$", "{:s}".format(CUTWRAP_INST))
         return self.RTL
@@ -80,9 +666,9 @@ cutwrap (
 """
         PHY_DB_INST = PHY_DB_INST.replace("$PHY_RE_INST$", "i_phy_re")
         PHY_DB_INST = PHY_DB_INST.replace("$PHY_DOUT_INST$", "o_phy_dout")
-        PHY_DB_INST = PHY_DB_INST.replace("$SI_SO_PORTS$", "{:s}".format(SI_SO_PORT))
-        PHY_DB_INST = PHY_DB_INST.replace("$ASYNC_WCLKS$", "i_phy_clk")
-        PHY_DB_INST = PHY_DB_INST.replace("$ASYNC_RCLKS$", "i_phy_clk")
+        PHY_DB_INST = PHY_DB_INST.replace("$SI_SO_PORT$", "{:s}".format(SI_SO_PORT))
+        PHY_DB_INST = PHY_DB_INST.replace("$ASYNC_WCLK$", "i_phy_clk")
+        PHY_DB_INST = PHY_DB_INST.replace("$ASYNC_RCLK$", "i_phy_clk")
         self.RTL = self.RTL.replace("$PHY_DB_INST$", "{:s}".format(PHY_DB_INST))
         return self.RTL
 
@@ -273,7 +859,7 @@ endgenerate
             ECC_INST_TMP = ECC_INST_TMP.replace("$SNS$", str(i))
             ECC_INST += ECC_INST_TMP
         ECC_INST = ECC_INST.replace("\n\n", "\n").strip("\n")
-        self.RTL = self.RTL.replace("$ECC_INSTS$", "{:s}".format(ECC_INST))
+        self.RTL = self.RTL.replace("$ECC_INST$", "{:s}".format(ECC_INST))
         return self.RTL
 
     def Rep_ECC_ASSIGN(self):
@@ -364,7 +950,7 @@ endgenerate
                 PHYWRAPINST_TMP = PHYWRAPINST_TMP.replace("phy_din", PHY_DIN)
                 PHYWRAPINST += PHYWRAPINST_TMP
                 counter += 1
-        self.RTL = self.RTL.replace("$PHYWRAP_INSTS$", "{:s}".format(PHYWRAPINST))
+        self.RTL = self.RTL.replace("$PHYWRAP_INST$", "{:s}".format(PHYWRAPINST))
         return self.RTL
 
 
@@ -396,43 +982,48 @@ endgenerate
             self.RTL = self.RTL.replace("$PHY_RE$", "{:s}".format(PHY_RE))
             self.RTL = self.RTL.replace("$PHY_WE$", "{:s}".format(PHY_WE))
             self.RTL = self.RTL.replace("$PHY_RE_DLY$", "{:s}".format(PHY_RE_DLY))
-            self.RTL = self.RTL.replace("$PHY_RADDRS$", "{:s}".format(PHY_RADDR))
-            self.RTL = self.RTL.replace("$PHY_WADDRS$", "{:s}".format(PHY_WADDR))
-            self.RTL = self.RTL.replace("$PHY_DOUTS$", "{:s}".format(PHY_DOUT))
-            self.RTL = self.RTL.replace("$PHY_DOUT_TMPS$", "{:s}".format(PHY_DOUT_TMP))
+            self.RTL = self.RTL.replace("$PHY_RADDR$", "{:s}".format(PHY_RADDR))
+            self.RTL = self.RTL.replace("$PHY_WADDR$", "{:s}".format(PHY_WADDR))
+            self.RTL = self.RTL.replace("$PHY_DOUT$", "{:s}".format(PHY_DOUT))
+            self.RTL = self.RTL.replace("$PHY_DOUT_TMP$", "{:s}".format(PHY_DOUT_TMP))
         return self.RTL
 
     def Initialize(self):
         self.gen_HEADER = ()
         self.GeneralProcess = ()
         self.Rep_CUTWRAP_INST = ()
-        self.Rep_PHY_DB_INST = ()
+        self.PHY_DB_INST = ()
         #self.Rep_BACKDOOR = ()
-        self.Rep_ECC_DEF = ()
+        #self.Rep_ECC_DEF = ()
         self.Rep_ECC_INST = ()
         self.Rep_ECC_ASSIGN = ()
         self.Rep_PHYWRAP_DEF = ()
         self.Rep_PHYWRAP_INST = ()
         self.Rep_PHYWRAP_ASSIGN = ()
 
-    def test(filename):
-        mem = Mem1R1WA(
-            Depth=4096,
-            Width=1536,
-            DB_Depth=4096,
-            DB_Width=133,
-        )
-        mem.Prefix = "Test"
-        mem.Initialize()
-        mem.DumpRTL(filename=filename)
+def test(filename):
+    mem = Mem1R1WA(
+        Depth=4096,
+        Width=1536,
+        DB_Depth=4096,
+        DB_Width=133,
+        DB_Name="DB_NAME",
+        ECC_Grp=2,
+        Fadio_dict={"fadio": 1},
+        Type_list=["drl", "0", "00"],
+        ECC_enable="NO"
+    )
+    mem.Prefix = "Test"
+    mem.Initialize()
+    mem.DumpRTL(filename=filename)
 
-    if __name__ == "__main__":
-        parser = argparse.ArgumentParser(description="program description")
-        parser.add_argument('-o', help="output verilog file name")
-        args = parser.parse_args()
-        logging.basicConfig(
-            level=logging.DEBUG,
-            datefmt="%Y/%m/%d %H:%M:%S",
-            format='%(asctime)s %(levelname)s : %(message)s (%(module)s-%(lineno)d-%(funcName)s)',
-        )
-        test(filename=args.o)       
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="program description")
+    parser.add_argument('-o', help="output verilog file name")
+    args = parser.parse_args()
+    logging.basicConfig(
+        level=logging.DEBUG,
+        datefmt="%Y/%m/%d %H:%M:%S",
+        format='%(asctime)s %(levelname)s : %(message)s (%(module)s-%(lineno)d-%(funcName)s)',
+    )
+    test(filename=args.o)       

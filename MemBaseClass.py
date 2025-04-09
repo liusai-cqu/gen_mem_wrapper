@@ -28,20 +28,18 @@ class MemBase():
     def gen_HEADER(self):
         TimeStamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
         self.HEADER = """
-if TimeStamp!= '':
-    self.HEADER = self.HEADER.replace('$TimeStamp$', TimeStamp)
-self.HEADER = self.HEADER.replace('$NOTE$', self.Note)
-return self.HEADER
-"""
-        if TimeStamp!= "":
-            self.HEADER = self.HEADER.replace("$TimeStamp$", TimeStamp)
-        self.HEADER = self.HEADER.replace("$NOTE$", self.Note)
+        """
+        if TimeStamp != "":
+            self.HEADER = self.HEADER.replace('$TimeStamp$', TimeStamp)
+        self.HEADER = self.HEADER.replace('$NOTE$', self.Note)
+        return self.HEADER
 
     def GeneralProcess(self):
         if self.Prefix:
-            self.Prefix_name = self.Prefix
+            self.Prefix_name = ""
         else:
-            self.BaseName = "{}_{}_{}_{}X{}".format(self.Prefix_name, self.tag, self.Type, self.Depth, self.Width)
+            self.Prefix_name = self.Prefix+"_"
+        self.BaseName = "{}_{}_{}_{}X{}".format(self.Prefix_name, self.tag, self.Type, self.Depth, self.Width)
         self.RTL = self.RTL.replace("$BaseName$", "{}".format(self.BaseName))
         self.RTL = self.RTL.replace("$PREFIX$", "{}".format(self.Prefix_name))
         self.RTL = self.RTL.replace("$TYPE$", "{}".format(self.Type))
@@ -53,7 +51,7 @@ return self.HEADER
             fobj = open(filename, 'w')
             tmp_str = "\n".join([self.HEADER, self.RTL])
             fobj.write(tmp_str)
-            logging.info("Write RTL\t:<10s> into File\t:<s>", self.BaseName, filename)
+            logging.info("Write RTL\t{:<10s} into File:\t{:s}".format(self.BaseName, filename))
             fobj.close()
         else:
             logging.error("Filename is not defined %s", self.BaseName)
@@ -68,7 +66,7 @@ return self.HEADER
             tmp_str += "$PROJECT_ROOT/rtl/common/ecc/ECC_CHK.sv"+"\n"
             tmp_str += "$PROJECT_ROOT/rtl/common/ecc/m_ecc.sv"+"\n"
             fobj.write(tmp_str)
-            logging.info("Write LIST\t:<10s> into File\t:<t:s>", self.BaseName, filename)
+            logging.info("Write LIST\t{:<10s> into File\t:<t:s>", self.BaseName, filename)
             fobj.close()
         else:
             logging.error("Filename is not defined %s", self.BaseName)

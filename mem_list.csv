@@ -1,0 +1,6 @@
+,,,logic,,,,,,,,,,,physical memory,,,,,,,
+Version,Module name,Table name,Prefix,Num,Depth,Width,tablewidht  (with ECC),ECC,ECC_GRP,Type,search activity,read  activity,write activity,phy_mem num,phy_depth,phy_width,instance hight(um),instance width(um),physical mem area(um2),SRAM density,PhysicalDB
+0,TEST,1rwm_test,,1,1024,36,36,NO,1,1RWM,0%,1%,1%,1,1024,36,57.15,43.263,2472.48045,14.90972355,sadcls0g4l1p1024x36m4b1w1c1p0d0s1rm3sdmg0rw00zh
+0,TEST,1r1wm_test,,1,256,523,523,NO,1,1R1WM,0%,25%,50%,4,256,132,73.65,50.103,3690.08595,9.157510274,sadrls0g4u2p256x132m1b4w1c1p0d0s1rm3sdmg0rw00zh
+0,TEST,1r1wa_test,NO_ECC,1,16,158,158,NO,1,1R1WA,,,,1,16,158,162.81,16.359,2663.4088,0.949159588,sadrls0g4l2p16x158m2b1w0c1p0d0s1rm3sdmg0rw00zh
+0,TEST,1rws_test,,2,256,48,48,NO,1,1RWS,98%,1%,1%,1,256,48,46.32,92.454,4282,2.869687062,ts_6ff_tcam_111_hs_f_t_sul_gl_256x48x1_pbc
