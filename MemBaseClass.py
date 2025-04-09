@@ -66,7 +66,7 @@ class MemBase():
             tmp_str += "$PROJECT_ROOT/rtl/common/ecc/ECC_CHK.sv"+"\n"
             tmp_str += "$PROJECT_ROOT/rtl/common/ecc/m_ecc.sv"+"\n"
             fobj.write(tmp_str)
-            logging.info("Write LIST\t{:<10s> into File\t:<t:s>", self.BaseName, filename)
+            logging.info("Write LIST\t{:<10s} into File:\t{:s}".format(self.BaseName, filename))
             fobj.close()
         else:
             logging.error("Filename is not defined %s", self.BaseName)
