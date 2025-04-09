@@ -265,7 +265,7 @@ def gen_memwrapper(mdict, fadio_dict, DIR=""):
         mem.Initialize()
         mem.DumpRTL(filename=os.path.join(DIR, mem.BaseName + ".sv"))
         mem.DumpLIST(filename=os.path.join(DIR, mem.BaseName + ".f"))
-        mem.DumpTLIST(filename=f"$PROJECT_ROOT/rtl/common/mem_list/" + mem.BaseName + ".sv")
+        mem.DumpTLIST(filename="$PROJECT_ROOT/rtl/common/mem_list/" + mem.BaseName + ".sv")
     # elif (mdict["Type"] == "RWS"):
     #     mem = Tcam1RWS()
     #     Type_list = type_list
