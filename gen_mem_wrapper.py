@@ -1,11 +1,13 @@
-import re
+import os
 import time
 import argparse
 import logging
+import csv  
 
-template_1R1WA_TOP = """
-`ifndef GM_RAMWRAP_1R1WA_TOP_SV_
-`define GM_RAMWRAP_1R1WA_TOP_SV_
+
+template_1R1W_TOP = """
+`ifndef GM_RAMWRAP_1R1W_TOP_SV_
+`define GM_RAMWRAP_1R1W_TOP_SV_
 //==========================================================//
 // FUNCTION //
 //==========================================================//
@@ -23,19 +25,16 @@ endfunction
 // Memory, use Physical Wrap to build
 //==========================================================//
 `ifdef ASIC_COMPILE
-module RAMWRAP_1R1WA_TOP #(
+module RAMWRAP_1R1W_TOP #(
     parameter DEPTH = 256,
     parameter WIDTH = 75,
     parameter INPUTPIPELINE = 0,
     parameter DOUTPIPELINE = 0,
-    parameter PREFIX_ADDNAME = "",
-    parameter ASYN_RST_EN = 1'b0
+    parameter PREFIX_ADDNAME = ""
 )(
     //logic
-    input CLKW,
-    input CLKR,
-    input RSTW,
-    input RSTR,
+    input CLK,
+    input RST,
     //----------Logical read and write port----------//
     input RE,
     input WE,
@@ -62,18 +61,15 @@ endgenerate
 //==========================================================//
 // Memory Behaviour Model //
 //==========================================================//
-module RAMWRAP_1R1WA_TOP #(
+module RAMWRAP_1R1W_TOP #(
     parameter WIDTH = 256,
     parameter DOUTPIPELINE = 75,
     parameter INPUTPIPELINE = 0,
-    parameter PREFIX_ADDNAME = 0,
-    parameter ASYN_RST_EN = 0
+    parameter PREFIX_ADDNAME = 0
 )(
     //logic
-    input CLKR,
-    input CLKW,
-    input RSTR,
-    input RSTW,
+    input CLK,
+    input RST,
     //----------Logical read and write port----------//
     input RE,
     input WE,
@@ -110,8 +106,8 @@ data_pipe #(
    .FLOP_IN (0),
    .FLOP_OUT (0)
 ) U_REDLY_PIPE (
-   .i_clk (CLKR),
-   .i_rst (RSTR),
+   .i_clk (CLK),
+   .i_rst (RST),
    .i_vld (1'b1),
    .i_data (ppn_re),
    .o_vld_pp(),
@@ -125,8 +121,8 @@ data_pipe #(
    .FLOP_IN (0),
    .FLOP_OUT (0)
 ) U_WADDR_PIPE (
-   .i_clk (CLKW),
-   .i_rst (RSTW),
+   .i_clk (CLK),
+   .i_rst (RST),
    .i_vld (WE),
    .i_data (AddrW),
    .o_vld_pp(),
@@ -140,8 +136,8 @@ data_pipe #(
    .FLOP_IN (0),
    .FLOP_OUT (0)
 ) U_RADDR_PIPE (
-   .i_clk (CLKR),
-   .i_rst (RSTR),
+   .i_clk (CLK),
+   .i_rst (RST),
    .i_vld (RE),
    .i_data (AddrR),
    .o_vld_pp(),
@@ -155,8 +151,8 @@ data_pipe #(
    .FLOP_IN (0),
    .FLOP_OUT (0)
 ) U_WDATA_PIPE (
-   .i_clk (CLKW),
-   .i_rst (RSTW),
+   .i_clk (CLK),
+   .i_rst (RST),
    .i_vld (WE),
    .i_data (DIN),
    .o_vld_pp(),
@@ -170,8 +166,8 @@ data_pipe #(
    .FLOP_IN (0),
    .FLOP_OUT (0)
 ) U_RDATA_PIPE (
-   .i_clk (CLKR),
-   .i_rst (RSTR),
+   .i_clk (CLK),
+   .i_rst (RST),
    .i_vld (ppn_re_dly),
    .i_data (ppn_dout),
    .o_vld_pp(),
@@ -184,14 +180,14 @@ assign real_din = ppn_din;
 assign real_waddr = ppn_waddr;
 
 //----------write&read function----------//
-always @(posedge CLKW) begin
+always @(posedge CLK) begin
     if (real_we) begin
         mem[real_waddr] <= real_din;
     end
     else;
 end
 
-always @(posedge CLKR) begin
+always @(posedge CLK) begin
     if (ppn_re) begin
         ppn_dout <= mem[ppn_raddr];
     end
@@ -207,12 +203,12 @@ class MemWrapTop():
         self.Prefix = ""
         self.Prefix_name = "MemWrapTop"
         self.tag = ""
-        self.Type = "1R1WA"
+        self.Type = "1R1W"
         self.Width = 100
         self.Depth = 20
-        self.RTL = template_1R1WA_TOP
+        self.RTL = template_1R1W_TOP
         self.HEADER = ""
-        self.BaseName = "RAMWRAP_1R1WA_TOP"
+        self.BaseName = "RAMWRAP_1R1W_TOP"
         self.Note = "Use Define ASIC_COMPILE macro to use physical memory"
 
 
@@ -220,7 +216,7 @@ class MemWrapTop():
         MEMWRAPLIST = ""
         i = 0
         for name, mem_tmp in DataDict.items():
-            if mem_tmp["Type"] != "1R1WA":
+            if mem_tmp["Type"] != "1R1W":
                 logging.debug("skip this type: %s", mem_tmp["Type"])
                 continue
             Depth = mem_tmp["Depth"]
@@ -239,26 +235,17 @@ class MemWrapTop():
                 tag = "else "
             MEMWRAPLIST += """
 {:s} if (DEPTH == {:d} && WIDTH == {:d} && PREFIX_ADDNAME == "{:s}") begin:gen_{:s}{:s}_{:d}X{:d}
-    RAMWRAP_{:s}_{:d}X{:d} #(
-       .MEMPHY_CTRL_CFG_W(MEMPHY_CTRL_CFG_W),
-       .ASYNC_RST_EN(ASYNC_RST_EN),
-       .WIDTH(WIDTH),
-       .INPUTPIPELINE(INPUTPIPELINE),
-       .DOUTPIPELINE(DOUTPIPELINE)
-    memwrap (
-       .memphy_ctrl_cfg   ( memphy_ctrl_cfg ),
-       .i_clk            ( CLKW          ),
-       .i_clkr           ( CLKR          ),
-       .i_rstw           ( RSTW          ),
-       .i_rstr           ( RSTR          ),
-       .i_we             ( real_we       ),
-       .i_re             ( RE            ),
-       .i_raddr          ( AddrR         ),
-       .i_waddr          ( real_waddr    ),
-       .i_din            ( real_din      ),
-       .o_dout           ( DOUT          )
+    SGCL0BCSR0UAN_{:d}X{:d}X1M4B memwrap (
+       .CK         ( CLK           ),
+       .RET        ( RST           ),
+       .CSBN       ( real_we       ),
+       .CSAN       ( RE            ),
+       .A          ( AddrR         ),
+       .B          ( real_waddr    ),
+       .DI         ( real_din      ),
+       .DO         ( DOUT          )
     );
-end""".format(tag, int(Depth), int(Width), Prefix, self.Type, Prefix_name, int(Depth), int(Width), self.Type, int(Depth), int(Width))
+end""".format(tag, int(Depth), int(Width), Prefix, self.Type, Prefix_name, int(Depth), int(Width), int(Depth), int(Width))
             i = i + 1
         self.RTL = self.RTL.replace("$MEMWRAPLIST$", "{:s}".format(MEMWRAPLIST))
         return self.RTL
@@ -278,7 +265,7 @@ end""".format(tag, int(Depth), int(Width), Prefix, self.Type, Prefix_name, int(D
         if TimeStamp != "":
             self.HEADER = self.HEADER.replace('$TimeStamp$', TimeStamp)
         self.HEADER = self.HEADER.replace('$NOTE$', self.Note)
-        self.HEADER = self.HEADER.replace("@File:", "@File: RAMWRAP_1R1WA_TOP")
+        self.HEADER = self.HEADER.replace("@File:", "@File: RAMWRAP_1R1W_TOP")
         return self.HEADER
 
     def DumpRTL(self, filename):
@@ -316,15 +303,63 @@ end""".format(tag, int(Depth), int(Width), Prefix, self.Type, Prefix_name, int(D
             logging.error("Filename is not defined %s", self.BaseName)
 
 
+def pretreatment(filename):  
+    csv_tmp = open(filename).readlines()  
+    csv_tmp[0] = '' #'delete the first line of csv'  
+    with open('beta_memory_list.csv', 'w') as f:  
+        f.writelines(csv_tmp)  
+
+def process_csv2dict(filename):  
+    pretreatment(filename)  
+    mem_dict = dict()  
+    table_obj = dict()  
+    x = 0  
+    with open('beta_memory_list.csv') as f:  
+        f_csv = csv.DictReader(f)  
+        for row in f_csv:  
+            x = x + 1  
+            mem_dict["MEM_INDEX_" + str(x)] = row  
+        table_obj["MemoryWrapperList"] = mem_dict  
+    return table_obj  
+
+def gen_wrap_top(file_name, DIR="./"):
+    ram_table = process_csv2dict(file_name)
+    ram = dict()
+
+    for k in ram_table["MemoryWrapperList"].keys():
+        # print(k)        
+        ram_attr_list = ram_table["MemoryWrapperList"][k]
+        # print(ram_attr_list)
+            
+        ram_name = "RAMWRAP_{:s}_{:d}X{:d}".format(
+            ram_attr_list["Type"],
+            int(ram_attr_list["Depth"]),
+            int(ram_attr_list["Width"])
+        )
+        if "Prefix" in ram_attr_list.keys() and ram_attr_list["Prefix"] != "":
+            ram_name = ram_attr_list["Prefix"] + ram_name
+        if ram_attr_list["Type"] not in ram.keys():
+            ram[ram_attr_list["Type"]] = dict()
+        ram[ram_attr_list["Type"]][ram_name] = ram_attr_list  # NOTE:all memory divided by Type
+    for t in ram.keys():
+        if t == "1R1W":
+            MemTop_1R1W = MemWrapTop()
+            MemTop_1R1W.gen_HEADER()
+            MemTop_1R1W.loadjson(ram[t])
+            MemTop_1R1W.DumpRTL(filename=os.path.join(DIR, "BETA_RAMWRAP_" + str(t) + "_TOP.sv"))
+        else:
+            logging.warning("This type memory (%s) cannot be supported", t)
+    return ram
+
 def test(filename):
     datadict = {
         "MEM1": {
-            "Type": "1R1WA",
+            "Type": "1R1W",
             "Depth": 128,
             "Width": 512,
         },
         "MEM2": {
-            "Type": "1R1WA",
+            "Type": "1R1W",
             "Depth": 32,
             "Width": 64,
             "Prefix": "TESTPREFIX"
@@ -338,11 +373,20 @@ def test(filename):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="program description")
-    parser.add_argument('-o', help="output verilog file name")
+    parser.add_argument("-i", help="input md file name")
+    parser.add_argument("-o", help="output directory to store file name")
+    parser.add_argument("-log", help="output log to file")
     args = parser.parse_args()
-    logging.basicConfig(
-        level=logging.DEBUG,
-        datefmt='%Y/%m/%d %H:%M:%S',
-        format='%(asctime)s %(levelname)s : %(message)s (%(module)s-%(lineno)d-%(funcName)s)',
-    )
-    test(filename=args.o)
+    logging.basicConfig(level=logging.INFO,
+                        datefmt="%Y/%m/%d %H:%M:%S",
+                        format='%(asctime)s %(levelname)s: %(message)s (%(module)s-%(lineno)d-%(funcName)s)')
+    if args.log:
+        fhlr = logging.FileHandler(args.log)
+        fhlr.setLevel(logging.DEBUG)
+        fmt = logging.Formatter('%(asctime)s %(levelname)s: %(message)s (%(module)s-%(lineno)d-%(funcName)s)')
+        fhlr.setFormatter(fmt)
+        logging.getLogger().addHandler(fhlr)
+    if args.i:
+        logging.info("Input file is %s", args.i)
+        gen_wrap_top(file_name=args.i, DIR=args.o)
+    # test(filename="test.sv")
