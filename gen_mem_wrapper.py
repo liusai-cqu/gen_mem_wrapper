@@ -212,7 +212,7 @@ class MemWrapTop():
         self.Note = "Use Define ASIC_COMPILE macro to use physical memory"
 
 
-    def loadjson(self, DataDict):
+    def dump_memwraplist(self, DataDict):
         MEMWRAPLIST = ""
         i = 0
         for name, mem_tmp in DataDict.items():
@@ -345,8 +345,10 @@ def gen_wrap_top(file_name, DIR="./"):
         if t == "1R1W":
             MemTop_1R1W = MemWrapTop()
             MemTop_1R1W.gen_HEADER()
-            MemTop_1R1W.loadjson(ram[t])
+            MemTop_1R1W.dump_memwraplist(ram[t])
             MemTop_1R1W.DumpRTL(filename=os.path.join(DIR, "BETA_RAMWRAP_" + str(t) + "_TOP.sv"))
+            # MemTop_1R1W.DumpLIST(filename=os.path.join(DIR, MemTop_1R1W.BaseName + ".f"))
+            # MemTop_1R1W.DumpTLIST(filename="$PROJECT_ROOT/rtl/common/mem_list/" + MemTop_1R1W.BaseName + ".sv")           
         else:
             logging.warning("This type memory (%s) cannot be supported", t)
     return ram
@@ -367,7 +369,7 @@ def test(filename):
     }
     mem_tmp = MemWrapTop()
     mem_tmp.gen_HEADER()
-    mem_tmp.loadjson(datadict)
+    mem_tmp.dump_memwraplist(datadict)
     mem_tmp.DumpRTL(filename)
 
 
