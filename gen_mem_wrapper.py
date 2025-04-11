@@ -278,30 +278,68 @@ end""".format(tag, int(Depth), int(Width), Prefix, self.Type, Prefix_name, int(D
         else:
             logging.error("Filename is not defined %s", self.BaseName)
 
-    def DumpLIST(self, filename):
-        if filename!= "":
-            fobj = open(filename, 'w')
-            tmp_str = "$PROJECT_ROOT/rtl/common/"+"\n".join([filename[2:-2]])+".sv"+"\n"
-            tmp_str += "$PROJECT_ROOT/rtl/common/mem/mem_init.v"+"\n"
-            tmp_str += "$PROJECT_ROOT/rtl/common/pipe/data_pipe.v"+"\n"
-            tmp_str += "$PROJECT_ROOT/rtl/common/ecc/ECC_GEN.sv"+"\n"
-            tmp_str += "$PROJECT_ROOT/rtl/common/ecc/ECC_CHK.sv"+"\n"
-            tmp_str += "$PROJECT_ROOT/rtl/common/ecc/m_ecc.sv"+"\n"
-            fobj.write(tmp_str)
-            logging.info("Write LIST\t{:<10s} into File:\t{:s}".format(self.BaseName, filename))
-            fobj.close()
-        else:
+    def dump_list(self, DataDict, filename, corner_name="_tt1v85cctyp"):
+        """
+        生成供应商内存模型文件路径的列表文件
+        
+        Args:
+            DataDict: 内存配置字典
+            filename: 输出文件名
+            corner_name: 工艺角落名称，默认为"_tt1v85cctyp"
+        """
+        if filename == "":
             logging.error("Filename is not defined %s", self.BaseName)
+            return
+            
+        try:
+            with open(filename, 'w') as fobj:
+                count = 0
+                for name, mem_tmp in DataDict.items():
+                    # 过滤不支持的内存类型
+                    if mem_tmp["Type"] != "1R1W":
+                        logging.debug("skip this type: %s", mem_tmp["Type"])
+                        continue
+                        
+                    Depth = mem_tmp["Depth"]
+                    Width = mem_tmp["Width"]              
+                    vendor_mem = "SGCL0BCSR0UAN_{:d}X{:d}X1M4B".format(int(Depth), int(Width))
+                    
+                    # 使用os.path.join构建文件路径
+                    ram_dir = os.path.join("$RTL_ROOT", "common", "memory", "03_ram", vendor_mem)
+                    tmp_str = os.path.join(ram_dir, vendor_mem + corner_name + ".v")
+                    
+                    fobj.write(tmp_str + "\n")
+                    count += 1
+                    
+                logging.info("Write vendor memory list with %d entries into File: %s", count, filename)
+        except IOError as e:
+            logging.error("Failed to write to file %s: %s", filename, str(e))  
 
-    def DumpTLIST(self, filename):
-        if filename!= "":
-            fobj = open("memwrapper_filelist.f", 'a')
-            tmp_str = "\n" + "\n".join([filename])
-            fobj.write(tmp_str)
-            fobj.close()
-        else:
+    def dump_cfg_list(self, DataDict, filename):
+
+        if filename == "":
             logging.error("Filename is not defined %s", self.BaseName)
-
+            return
+            
+        try:
+            with open(filename, 'w') as fobj:
+                count = 0
+                for name, mem_tmp in DataDict.items():
+                    # 过滤不支持的内存类型
+                    if mem_tmp["Type"] != "1R1W":
+                        logging.debug("skip this type: %s", mem_tmp["Type"])
+                        continue
+                        
+                    Depth = mem_tmp["Depth"]
+                    Width = mem_tmp["Width"]              
+                    memmaker_cfg = "word {:d} bit {:d} byte 1 mux 1".format(int(Depth), int(Width))
+                    
+                    fobj.write(memmaker_cfg + "\n")
+                    count += 1
+                    
+                logging.info("Write memory maker cfg list with %d entries into File: %s", count, filename)
+        except IOError as e:
+            logging.error("Failed to write to file %s: %s", filename, str(e))  
 
 def pretreatment(filename):  
     csv_tmp = open(filename).readlines()  
@@ -347,8 +385,8 @@ def gen_wrap_top(file_name, DIR="./"):
             MemTop_1R1W.gen_HEADER()
             MemTop_1R1W.dump_memwraplist(ram[t])
             MemTop_1R1W.DumpRTL(filename=os.path.join(DIR, "BETA_RAMWRAP_" + str(t) + "_TOP.sv"))
-            # MemTop_1R1W.DumpLIST(filename=os.path.join(DIR, MemTop_1R1W.BaseName + ".f"))
-            # MemTop_1R1W.DumpTLIST(filename="$PROJECT_ROOT/rtl/common/mem_list/" + MemTop_1R1W.BaseName + ".sv")           
+            MemTop_1R1W.dump_list(ram[t], filename=os.path.join(DIR, "vendor_mem.f"), corner_name="_tt1v85cctyp")
+            MemTop_1R1W.dump_cfg_list(ram[t], filename=os.path.join(DIR, "beta_cfg.list"))         
         else:
             logging.warning("This type memory (%s) cannot be supported", t)
     return ram
@@ -370,8 +408,9 @@ def test(filename):
     mem_tmp = MemWrapTop()
     mem_tmp.gen_HEADER()
     mem_tmp.dump_memwraplist(datadict)
-    mem_tmp.DumpRTL(filename)
-
+    mem_tmp.DumpRTL("test.v")
+    mem_tmp.dump_list(datadict, "test.f", corner_name="_tt1v85cctyp")
+    mem_tmp.dump_cfg_list(datadict,"test_cfg.list")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="program description")
@@ -390,5 +429,5 @@ if __name__ == "__main__":
         logging.getLogger().addHandler(fhlr)
     if args.i:
         logging.info("Input file is %s", args.i)
-        gen_wrap_top(file_name=args.i, DIR=args.o)
-    # test(filename="test.sv")
+        #gen_wrap_top(file_name=args.i, DIR=args.o)
+    test(filename="test.sv")
